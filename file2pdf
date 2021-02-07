@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# usage: file2pdf [INPUT FILE] [OUTPUT FILE]
+# dependencies: enscript, ps2pdf
+
+TXT=$1
+PDF=$2
+
+echo "Converting $TXT to PDF..."
+enscript "$TXT" -B -o - | ps2pdf - "$PDF"
+echo "Saved to $PDF"
