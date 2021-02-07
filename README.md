@@ -5,6 +5,11 @@ A TTS gui powered by gTTS api.
 
 ![tts gui](tts.png)
 
+## Dependencies
+- tkinter
+- pdftotext
+    - poppler
+
 ## Also Included
 - file2pdf: convert text files to pdf
 - ocr: convert image PDF to TXT
