@@ -10,11 +10,12 @@ from tkinter import *
 from tkinter.filedialog import askopenfilename
 import pdftotext
 
-# current page in pdf
+# global variables
 current_pdf = ""
 currentPage = 1
 pageCount = 0
 reading = False
+speed = 1
 
 # GUI
 root = Tk()
@@ -80,6 +81,11 @@ def nextPage():
         text.insert(1.0, pdf_text)
         update_page()
 
+# speed control
+def speed_control(val):
+    global speed
+    speed = val
+
 # wrapper for read_aloud
 def read_aloud_background():
     global reading
@@ -89,7 +95,6 @@ def read_aloud_background():
         t.start()
     elif reading:
         reading = False
-
 
 # read contents
 def read_aloud():
@@ -111,7 +116,7 @@ def read_aloud():
                 while not os.path.exists(save_file):
                     print('sleeping')
                     time.sleep(1)
-                os.system(f'mpv {save_file}')
+                os.system(f'mpv --speed={speed} {save_file}')
     reading = False
 
 # jump to page
@@ -164,8 +169,12 @@ page_frame.columnconfigure(1, weight=1)
 page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
 count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
 
+# speed slider
+speed_slider = Scale(root, from_=1, to=3, digits=3, length=250, resolution=0.25, orient=HORIZONTAL, command=speed_control)
+speed_slider.pack()
+
 # textbox
-text = Text(root, height=600, width=750)
+text = Text(root, height=1000, width=1000)
 text.pack()
 
 # dropdowns
