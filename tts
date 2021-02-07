@@ -3,6 +3,7 @@
 import os
 import time
 import re
+import threading
 
 import tkinter
 from tkinter import *
@@ -13,6 +14,7 @@ import pdftotext
 current_pdf = ""
 currentPage = 1
 pageCount = 0
+reading = False
 
 # GUI
 root = Tk()
@@ -78,23 +80,36 @@ def nextPage():
         text.insert(1.0, pdf_text)
         update_page()
 
+# wrapper for read_aloud
+def read_aloud_background():
+    global reading
+    if not reading:
+        reading = True
+        t = threading.Thread(target=read_aloud)
+        t.start()
+    elif reading:
+        reading = False
+
+
 # read contents
 def read_aloud():
+    global reading
     save_file = "/tmp/tts_read_file.mp3"
 
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
-        for sentence in re.split('\.\s', current_text):
+        for sentence in re.split('[\.,!?\t\n\r]', current_text):
             sentence.lstrip().rstrip()
-            if sentence:
+            if sentence and reading:
                 print("Reading:", sentence)
 
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
                     os.system(f'rm {save_file}')
-                os.system(f'gtts-cli "{sentence}" > /tmp/read.mp3')
+                os.system(f'gtts-cli "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
+                    print('sleeping')
                     time.sleep(1)
                 os.system(f'mpv {save_file}')
 
@@ -122,7 +137,7 @@ button_frame.pack(fill=tkinter.X, side=tkinter.TOP)
 prev_page_button = Button(button_frame, text="Prev", command=prevPage, bg="pink")
 next_page_button = Button(button_frame, text="Next", command=nextPage, bg="lightblue")
 
-read_page_button = Button(button_frame, text="Read", command=read_aloud, bg="lightgreen")
+read_page_button = Button(button_frame, text="Read", command=read_aloud_background, bg="lightgreen")
 jump_page_button = Button(button_frame, text="Jump", command=jump_text, bg="orange")
 
 button_frame.columnconfigure(0, weight=1)
