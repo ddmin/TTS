@@ -112,6 +112,7 @@ def read_aloud():
                     print('sleeping')
                     time.sleep(1)
                 os.system(f'mpv {save_file}')
+    reading = False
 
 # jump to page
 def jump_text():
