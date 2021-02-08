@@ -109,14 +109,17 @@ def read_aloud():
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
-        groups = re.split('[\.\-!?\t]', current_text)
+        groups = re.split('[\.!?]', current_text)
         groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
         groups = list(map(lambda x: ''.join(x), groups))
-        print(groups)
         for sentence in groups:
             sentence.lstrip().rstrip()
             if sentence and reading:
-                print("Reading:", sentence)
+                # sanitize double quotes
+                sentence.replace('"', '')
+
+                # replace all white space with space
+                sentence = re.sub('\s', ' ', sentence)
 
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
@@ -179,8 +182,9 @@ page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
 count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
 
 # speed slider
-speed_slider = Scale(root, from_=1, to=3, digits=3, length=250, resolution=0.25, orient=HORIZONTAL, command=speed_control)
+speed_slider = Scale(root, from_=0, to=3, digits=3, length=250, resolution=0.25, orient=HORIZONTAL, command=speed_control)
 speed_slider.pack()
+speed_slider.set(1)
 
 # textbox
 text = Text(root, height=1000, width=1000)
