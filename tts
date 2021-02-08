@@ -26,6 +26,10 @@ root.geometry("1400x800")
 menu = Menu(root)
 root.config(menu=menu)
 
+# clear page
+def clear_page(event=None):
+    text.delete(1.0, tkinter.END)
+
 # update page count
 def update_page():
     page_format = f'{currentPage}'
@@ -37,7 +41,7 @@ def update_page():
     count_box.insert(1.0, count_format)
 
 # open pdf file
-def open_pdf():
+def open_pdf(event=None):
     global current_pdf
     global pageCount
     global currentPage
@@ -57,7 +61,7 @@ def open_pdf():
     update_page()
 
 # previous page function
-def prevPage():
+def prevPage(event=None):
     global current_pdf
     global currentPage
     if currentPage > 1:
@@ -70,7 +74,7 @@ def prevPage():
         pass
 
 # next page function
-def nextPage():
+def nextPage(event=None):
     global current_pdf
     global currentPage
     global pageCount
@@ -87,7 +91,7 @@ def speed_control(val):
     speed = val
 
 # wrapper for read_aloud
-def read_aloud_background():
+def read_aloud_background(event=None):
     global reading
     if not reading:
         reading = True
@@ -100,11 +104,16 @@ def read_aloud_background():
 def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
+    GROUPING = 3
 
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
-        for sentence in re.split('[\.,!?\t\n\r]', current_text):
+        groups = re.split('[\.\-!?\t]', current_text)
+        groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
+        groups = list(map(lambda x: ''.join(x), groups))
+        print(groups)
+        for sentence in groups:
             sentence.lstrip().rstrip()
             if sentence and reading:
                 print("Reading:", sentence)
@@ -177,10 +186,18 @@ speed_slider.pack()
 text = Text(root, height=1000, width=1000)
 text.pack()
 
+# keybinds
+root.bind('<Control-o>', open_pdf)
+root.bind('<Control-l>', clear_page)
+root.bind('<Left>', prevPage)
+root.bind('<Right>', nextPage)
+root.bind('<Control-r>', read_aloud_background)
+
 # dropdowns
 file_menu = Menu(menu, tearoff=False)
 menu.add_cascade(label="File", menu=file_menu)
 file_menu.add_command(label="Open PDF", command=open_pdf)
+file_menu.add_command(label="Clear", command=clear_page)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
 
