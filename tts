@@ -114,9 +114,9 @@ def read_aloud():
                     os.system(f'rm {save_file}')
                 os.system(f'gtts-cli "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
-                    print('sleeping')
-                    time.sleep(1)
+                    pass
                 os.system(f'mpv --speed={speed} {save_file}')
+                time.sleep(1)
     reading = False
 
 # jump to page
