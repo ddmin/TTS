@@ -214,8 +214,8 @@ text.pack()
 # keybinds
 root.bind('<Control-o>', open_pdf)
 root.bind('<Control-l>', clear_page)
-root.bind('<Left>', prevPage)
-root.bind('<Right>', nextPage)
+root.bind('<Control-Left>', prevPage)
+root.bind('<Control-Right>', nextPage)
 root.bind('<Control-r>', read_aloud_background)
 
 # dropdowns
