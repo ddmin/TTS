@@ -104,25 +104,30 @@ def read_aloud_background(event=None):
 def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
-    GROUPING = 3
     idx = '1.0'
+    lastidx = '1.0'
 
-    current_text = text.get(1.0, tkinter.END+"-1c")
+    current_text = text.get('1.0', tkinter.END+"-1c")
     if current_text:
         # split sentences
         groups = re.split('[\.!?]\s', current_text)
-        groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
-        groups = list(map(lambda x: '. '.join(x), groups))
         for sentence in groups:
-            sentence.lstrip().rstrip()
-            if sentence and reading:
-                lastidx = f'{idx}+{len(sentence)+2}c'
+            if sentence.lstrip().rstrip() and reading:
+                for line in re.split('[\n\t\r]', sentence):
+                    idx = text.search(line, lastidx, stopindex=tkinter.END)
+                    lastidx = f'{str(idx)}+{len(line)}c'
 
-                # set tag to highlight current passage
-                text.tag_add('current', idx, lastidx)
+                    # set tag to highlight current passage
+                    text.tag_add('current', idx, lastidx)
+
+                    # increment line
+                    idx = float(idx) + 1
 
                 # highlight current passage
                 text.tag_config('current', background='lightblue')
+
+                # update position
+                idx = lastidx
 
                 # sanitize quotes, brackets, parentheses
                 sentence = re.sub('[\[\]\{\}\(\)\'\"]', '', sentence)
@@ -146,9 +151,6 @@ def read_aloud():
                 # remove tags
                 for tag in text.tag_names():
                     text.tag_delete(tag)
-
-                # update position
-                idx = lastidx
 
     reading = False
 
