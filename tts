@@ -105,22 +105,27 @@ def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
     GROUPING = 3
+    idx = '1.0'
 
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
-        groups = re.split('[\.!?]\s+', current_text)
+        groups = re.split('[\.!?]\s', current_text)
         groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
         groups = list(map(lambda x: '. '.join(x), groups))
         for sentence in groups:
             sentence.lstrip().rstrip()
             if sentence and reading:
+                lastidx = f'{idx}+{len(sentence)+2}c'
+
+                # set tag to highlight current passage
+                text.tag_add('current', idx, lastidx)
+
                 # sanitize quotes, brackets, parentheses
                 sentence = re.sub('[\[\]\{\}\(\)\'\"]', '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
-                print(sentence)
 
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
@@ -128,8 +133,22 @@ def read_aloud():
                 os.system(f'gtts-cli "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
                     pass
+
+                # highlight current passage
+                text.tag_config('current', background='lightblue')
+
                 os.system(f'mpv --speed={speed} {save_file}')
-                time.sleep(1)
+
+                # remove highlight
+                text.tag_config('current', background='')
+
+                # remove tags
+                for tag in text.tag_names():
+                    text.tag_delete(tag)
+
+                # update position
+                idx = lastidx
+
     reading = False
 
 # jump to page
