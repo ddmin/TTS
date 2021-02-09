@@ -104,7 +104,7 @@ def read_aloud_background(event=None):
 def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
-    GROUPING = 2
+    GROUPING = 3
 
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
@@ -117,6 +117,10 @@ def read_aloud():
             if sentence and reading:
                 # sanitize double quotes
                 sentence.replace('"', '')
+
+                # sanitize parentheses
+                sentence.replace('(', '')
+                sentence.replace(')', '')
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
