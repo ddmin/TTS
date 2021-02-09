@@ -188,7 +188,7 @@ speed_slider.pack()
 speed_slider.set(1)
 
 # textbox
-text = Text(root, height=1000, width=1000)
+text = Text(root, height=1000, width=1000, font=("Helvetica", 22))
 text.pack()
 
 # keybinds
