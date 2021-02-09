@@ -104,14 +104,14 @@ def read_aloud_background(event=None):
 def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
-    GROUPING = 3
+    GROUPING = 2
 
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
         groups = re.split('[\.!?]', current_text)
         groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
-        groups = list(map(lambda x: ''.join(x), groups))
+        groups = list(map(lambda x: '. '.join(x), groups))
         for sentence in groups:
             sentence.lstrip().rstrip()
             if sentence and reading:
