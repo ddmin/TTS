@@ -121,6 +121,9 @@ def read_aloud():
                 # set tag to highlight current passage
                 text.tag_add('current', idx, lastidx)
 
+                # highlight current passage
+                text.tag_config('current', background='lightblue')
+
                 # sanitize quotes, brackets, parentheses
                 sentence = re.sub('[\[\]\{\}\(\)\'\"]', '', sentence)
 
@@ -134,9 +137,7 @@ def read_aloud():
                 while not os.path.exists(save_file):
                     pass
 
-                # highlight current passage
-                text.tag_config('current', background='lightblue')
-
+                # play passage
                 os.system(f'mpv --speed={speed} {save_file}')
 
                 # remove highlight
