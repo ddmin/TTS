@@ -109,7 +109,7 @@ def read_aloud():
     current_text = text.get(1.0, tkinter.END+"-1c")
     if current_text:
         # split sentences
-        groups = re.split('[\.!?]', current_text)
+        groups = re.split('[\.!?]\s+', current_text)
         groups = [groups[i: i+GROUPING] for i in range(0, len(groups), GROUPING)]
         groups = list(map(lambda x: '. '.join(x), groups))
         for sentence in groups:
