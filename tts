@@ -115,15 +115,12 @@ def read_aloud():
         for sentence in groups:
             sentence.lstrip().rstrip()
             if sentence and reading:
-                # sanitize double quotes
-                sentence.replace('"', '')
-
-                # sanitize parentheses
-                sentence.replace('(', '')
-                sentence.replace(')', '')
+                # sanitize quotes, brackets, parentheses
+                sentence = re.sub('[\[\]\{\}\(\)\'\"]', '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
+                print(sentence)
 
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
