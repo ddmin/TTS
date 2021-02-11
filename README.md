@@ -6,9 +6,11 @@ A TTS gui powered by gTTS api.
 ![tts gui](tts.png)
 
 ## Dependencies
-- tkinter
-- pdftotext
+- gTTS (obviously)
+- tkinter (GUI)
+- pdftotext (reading PDFs)
     - poppler
+- mpv (for playing back files)
 
 ## Also Included
 - file2pdf: convert text files to pdf
