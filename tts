@@ -40,25 +40,37 @@ def update_page():
     count_box.delete(1.0, tkinter.END)
     count_box.insert(1.0, count_format)
 
-# open pdf file
-def open_pdf(event=None):
+# open file
+def open_file(event=None):
     global current_pdf
     global pageCount
     global currentPage
     filelocation = askopenfilename(initialdir="~", title="Select PDF",
             filetypes=(
                 ("PDF Files", "*.pdf"),
+                ("TXT Files", "*.txt"),
                 ("All Files", "*.*")))
 
-    with open(filelocation, "rb") as f:
-        current_pdf = pdftotext.PDF(f)
+    if filelocation[-3:] == "txt":
+        with open(filelocation, "r") as f:
+            current_txt = f.read()
 
-    currentPage = 1
-    pageCount = len(current_pdf)
-    pdf_text = current_pdf[currentPage-1]
-    text.delete(1.0, tkinter.END)
-    text.insert(1.0, pdf_text)
-    update_page()
+            currentPage = 1
+            pageCount = 1
+            text.delete(1.0, tkinter.END)
+            text.insert(1.0, current_txt)
+            update_page()
+
+    elif filelocation[-3:] == "pdf":
+        with open(filelocation, "rb") as f:
+            current_pdf = pdftotext.PDF(f)
+
+            currentPage = 1
+            pageCount = len(current_pdf)
+            pdf_text = current_pdf[currentPage-1]
+            text.delete(1.0, tkinter.END)
+            text.insert(1.0, pdf_text)
+            update_page()
 
 # previous page function
 def prevPage(event=None):
@@ -214,7 +226,7 @@ text = Text(root, height=1000, width=1000, font=("Helvetica", 15))
 text.pack()
 
 # keybinds
-root.bind('<Control-o>', open_pdf)
+root.bind('<Control-o>', open_file)
 root.bind('<Control-l>', clear_page)
 root.bind('<Control-Left>', prevPage)
 root.bind('<Control-Right>', nextPage)
@@ -223,7 +235,7 @@ root.bind('<Control-r>', read_aloud_background)
 # dropdowns
 file_menu = Menu(menu, tearoff=False)
 menu.add_cascade(label="File", menu=file_menu)
-file_menu.add_command(label="Open PDF", command=open_pdf)
+file_menu.add_command(label="Open PDF", command=open_file)
 file_menu.add_command(label="Clear", command=clear_page)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
