@@ -141,8 +141,8 @@ def read_aloud():
                 # update position
                 idx = lastidx
 
-                # sanitize quotes, brackets, parentheses
-                sentence = re.sub('[\[\]\{\}\(\)\'\"]', '', sentence)
+                # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
+                sentence = re.sub('[\[\]\{\}\(\)\'\"\-:;]', '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
