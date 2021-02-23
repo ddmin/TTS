@@ -38,7 +38,7 @@ def pdf():
 
 def main():
     if len(sys.argv) != 3:
-        print('tts [file] [save-file]')
+        print('ocr [file] [save-file]')
         print("Please provide two arguments.")
         sys.exit()
 
