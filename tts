@@ -141,15 +141,19 @@ def read_aloud():
                 # update position
                 idx = lastidx
 
-                # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
+                # pre-sanitize
                 print(sentence)
+
+                # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
                 sentence = re.sub('[\[\]\{\}\(\)\-:;]', '', sentence)
+                sentence = re.sub("[“”’]", '', sentence)
                 sentence = re.sub('"', '', sentence)
                 sentence = re.sub("'", '', sentence)
-                sentence = re.sub("“”’", '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
+
+                # post-sanitize
                 print(sentence)
 
                 # gtts-cli (alternative: espeak)
@@ -172,7 +176,7 @@ def read_aloud():
     reading = False
 
 # jump to page
-def jump_text():
+def jump_text(event=None):
     global current_pdf
     global currentPage
     global pageCount
@@ -227,7 +231,7 @@ speed_slider.pack()
 speed_slider.set(1)
 
 # textbox
-text = Text(root, height=1000, width=1000, font=("Helvetica", 15))
+text = Text(root, height=1000, width=1000, font=("Arial", 15))
 text.pack()
 
 # keybinds
@@ -236,6 +240,7 @@ root.bind('<Control-l>', clear_page)
 root.bind('<Control-Left>', prevPage)
 root.bind('<Control-Right>', nextPage)
 root.bind('<Control-r>', read_aloud_background)
+root.bind('<Control-j>', jump_text)
 
 # dropdowns
 file_menu = Menu(menu, tearoff=False)
