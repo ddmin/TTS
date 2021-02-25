@@ -150,7 +150,7 @@ def read_aloud():
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
                     os.system(f'rm {save_file}')
-                os.system(f'gtts-cli "{sentence}" > {save_file}')
+                os.system(f'gtts-cli -l en "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
                     pass
 
