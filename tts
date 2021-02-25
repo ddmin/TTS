@@ -142,10 +142,15 @@ def read_aloud():
                 idx = lastidx
 
                 # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
-                sentence = re.sub('[\[\]\{\}\(\)\'\"\-:;]', '', sentence)
+                print(sentence)
+                sentence = re.sub('[\[\]\{\}\(\)\-:;]', '', sentence)
+                sentence = re.sub('"', '', sentence)
+                sentence = re.sub("'", '', sentence)
+                sentence = re.sub("“”’", '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
+                print(sentence)
 
                 # gtts-cli (alternative: espeak)
                 if os.path.exists(save_file):
