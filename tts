@@ -145,10 +145,9 @@ def read_aloud():
                 print(sentence)
 
                 # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
-                sentence = re.sub('[\[\]\{\}\(\)\-:;]', '', sentence)
+                sentence = re.sub('[\[\]\{\}\(\)\-:;_*]', '', sentence)
                 sentence = re.sub("[“”’]", '', sentence)
                 sentence = re.sub('"', '', sentence)
-                sentence = re.sub("'", '', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
