@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 
 import os
-import time
 import re
 import threading
 
 import tkinter
-from tkinter import *
+from tkinter import Tk, Menu, Frame, Button, Scale, Text, HORIZONTAL
 from tkinter.filedialog import askopenfilename
 import pdftotext
 
@@ -26,9 +25,11 @@ root.geometry("1400x800")
 menu = Menu(root)
 root.config(menu=menu)
 
+
 # clear page
 def clear_page(event=None):
     text.delete(1.0, tkinter.END)
+
 
 # update page count
 def update_page():
@@ -40,16 +41,18 @@ def update_page():
     count_box.delete(1.0, tkinter.END)
     count_box.insert(1.0, count_format)
 
+
 # open file
 def open_file(event=None):
     global current_pdf
     global pageCount
     global currentPage
     filelocation = askopenfilename(initialdir="~", title="Select PDF",
-            filetypes=(
-                ("PDF Files", "*.pdf"),
-                ("TXT Files", "*.txt"),
-                ("All Files", "*.*")))
+                                   filetypes=(
+                                              ("PDF Files", "*.pdf"),
+                                              ("TXT Files", "*.txt"),
+                                              ("All Files", "*.*"))
+                                   )
 
     if filelocation[-3:] == "txt":
         with open(filelocation, "r") as f:
@@ -72,6 +75,7 @@ def open_file(event=None):
             text.insert(1.0, pdf_text)
             update_page()
 
+
 # previous page function
 def prevPage(event=None):
     global current_pdf
@@ -85,6 +89,7 @@ def prevPage(event=None):
     else:
         pass
 
+
 # next page function
 def nextPage(event=None):
     global current_pdf
@@ -97,10 +102,12 @@ def nextPage(event=None):
         text.insert(1.0, pdf_text)
         update_page()
 
+
 # speed control
 def speed_control(val):
     global speed
     speed = val
+
 
 # wrapper for read_aloud
 def read_aloud_background(event=None):
@@ -111,6 +118,7 @@ def read_aloud_background(event=None):
         t.start()
     elif reading:
         reading = False
+
 
 # read contents
 def read_aloud():
@@ -141,9 +149,6 @@ def read_aloud():
                 # update position
                 idx = lastidx
 
-                # pre-sanitize
-                print(sentence)
-
                 # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
                 sentence = re.sub('[\[\]\{\}\(\)\-:;_*]', '', sentence)
                 sentence = re.sub("[“”’]", '', sentence)
@@ -152,13 +157,10 @@ def read_aloud():
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
 
-                # post-sanitize
-                print(sentence)
-
-                # gtts-cli (alternative: espeak)
+                # mimic3 (alternative: espeak)
                 if os.path.exists(save_file):
                     os.system(f'rm {save_file}')
-                os.system(f'gtts-cli -l en "{sentence}" > {save_file}')
+                os.system(f'mimic3 "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
                     pass
 
@@ -173,6 +175,7 @@ def read_aloud():
                     text.tag_delete(tag)
 
     reading = False
+
 
 # jump to page
 def jump_text(event=None):
@@ -195,11 +198,15 @@ def jump_text(event=None):
 button_frame = Frame(root)
 button_frame.pack(fill=tkinter.X, side=tkinter.TOP)
 
-prev_page_button = Button(button_frame, text="Prev", command=prevPage, bg="pink")
-next_page_button = Button(button_frame, text="Next", command=nextPage, bg="lightblue")
+prev_page_button = Button(button_frame, text="Prev",
+                          command=prevPage, bg="pink")
+next_page_button = Button(button_frame, text="Next",
+                          command=nextPage, bg="lightblue")
 
-read_page_button = Button(button_frame, text="Read", command=read_aloud_background, bg="lightgreen")
-jump_page_button = Button(button_frame, text="Jump", command=jump_text, bg="orange")
+read_page_button = Button(button_frame, text="Read",
+                          command=read_aloud_background, bg="lightgreen")
+jump_page_button = Button(button_frame, text="Jump",
+                          command=jump_text, bg="orange")
 
 button_frame.columnconfigure(0, weight=1)
 button_frame.columnconfigure(1, weight=1)
@@ -225,7 +232,8 @@ page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
 count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
 
 # speed slider
-speed_slider = Scale(root, from_=0, to=3, digits=3, length=250, resolution=0.25, orient=HORIZONTAL, command=speed_control)
+speed_slider = Scale(root, from_=0, to=3, digits=3, length=250, resolution=0.25
+                     , orient=HORIZONTAL, command=speed_control)
 speed_slider.pack()
 speed_slider.set(1)
 
