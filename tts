@@ -124,13 +124,26 @@ def read_aloud_background(event=None):
 def read_aloud():
     global reading
     save_file = "/tmp/tts_read_file.mp3"
-    idx = '1.0'
-    lastidx = '1.0'
+    idx = '0.0'
+    lastidx = '0.0'
 
     current_text = text.get('1.0', tkinter.END+"-1c")
     if current_text:
-        # split sentences
-        groups = re.split('[\.!?]\s', current_text)
+        # split sentences by punctuation
+        # groups = re.split('[\.!?]\s', current_text)
+
+        # split sentences into even sized word chunks
+        CHUNK_SIZE=20
+
+        words = current_text.split(' ')
+
+        groups = []
+        for i in range(0, len(words), CHUNK_SIZE):
+            if i+CHUNK_SIZE <= len(words):
+                groups.append(' '.join(words[i:i+CHUNK_SIZE-1]))
+            else:
+                groups.append(' '.join(words[i:]))
+
         for sentence in groups:
             if sentence.lstrip().rstrip() and reading:
                 for line in re.split('[\n\t\r]', sentence):
@@ -160,7 +173,7 @@ def read_aloud():
                 # mimic3 (alternative: espeak)
                 if os.path.exists(save_file):
                     os.system(f'rm {save_file}')
-                os.system(f'mimic3 "{sentence}" > {save_file}')
+                os.system(f'mimic3 --voice en_US/vctk_low#p276 "{sentence}" > {save_file}')
                 while not os.path.exists(save_file):
                     pass
 
@@ -232,7 +245,7 @@ page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
 count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
 
 # speed slider
-speed_slider = Scale(root, from_=0, to=3, digits=3, length=250, resolution=0.25
+speed_slider = Scale(root, from_=0.25, to=3, digits=3, length=250, resolution=0.25
                      , orient=HORIZONTAL, command=speed_control)
 speed_slider.pack()
 speed_slider.set(1)
