@@ -22,6 +22,4 @@ A TTS gui powered by ~~gTTS api~~ mimic3.
 Note: TTS stands for _Terrible Text Synthesizer_, which is a backcronym created to avoid confusion and possible lawsuits <sup>just kidding no one's gonna see this</sup>
 
 ## TODO
-- hyphenated numbers / words (sometimes) pronounced incorrectly
-  - sanitize hyphens under certain circumstances
 - async mimic3

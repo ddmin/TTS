@@ -19,12 +19,18 @@ speed = 1
 # GUI
 root = Tk()
 root.title('TTS')
-root.geometry("1400x800")
+root.geometry("1000x800")
 
 # menu
 menu = Menu(root)
 root.config(menu=menu)
 
+# select all text
+def select_all(event=None):
+    text.tag_add(tkinter.SEL, "1.0", tkinter.END)
+    text.mark_set(tkinter.INSERT, "1.0")
+    text.see(tkinter.INSERT)
+    return 'break'
 
 # clear page
 def clear_page(event=None):
@@ -40,7 +46,6 @@ def update_page():
     count_format = f'/{pageCount}'
     count_box.delete(1.0, tkinter.END)
     count_box.insert(1.0, count_format)
-
 
 # open file
 def open_file(event=None):
@@ -133,14 +138,14 @@ def read_aloud():
         # groups = re.split('[\.!?]\s', current_text)
 
         # split sentences into even sized word chunks
-        CHUNK_SIZE=20
+        CHUNK_SIZE=30
 
         words = current_text.split(' ')
 
         groups = []
         for i in range(0, len(words), CHUNK_SIZE):
             if i+CHUNK_SIZE <= len(words):
-                groups.append(' '.join(words[i:i+CHUNK_SIZE-1]))
+                groups.append(' '.join(words[i:i+CHUNK_SIZE]))
             else:
                 groups.append(' '.join(words[i:]))
 
@@ -162,10 +167,25 @@ def read_aloud():
                 # update position
                 idx = lastidx
 
-                # sanitize quotes, brackets, parentheses, hyphen, colon, semicolon
-                sentence = re.sub('[\[\]\{\}\(\)\-:;_*]', '', sentence)
+                # sanitize quotes, brackets, parentheses, colon, semicolon
+                sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
                 sentence = re.sub("[“”’]", '', sentence)
                 sentence = re.sub('"', '', sentence)
+
+                # number word combinations
+                sentence = re.sub('([A-Za-z])(\d)', r'\1 \2', sentence)
+                sentence = re.sub('(\d)([A-Za-z])', r'\1 \2', sentence)
+
+                # hyphenated numbers
+                sentence = re.sub('(\d+)[-–—−]+', r'\1 to ', sentence)
+
+                # comma'd numbers
+                sentence = re.sub(',(\d+)', r' \1', sentence)
+
+                print(sentence)
+
+                # remove all hyphens
+                sentence = re.sub('-–—−', ' ', sentence)
 
                 # replace all white space with space
                 sentence = re.sub('\s', ' ', sentence)
@@ -255,6 +275,7 @@ text = Text(root, height=1000, width=1000, font=("Arial", 15))
 text.pack()
 
 # keybinds
+root.bind('<Control-a>', select_all)
 root.bind('<Control-o>', open_file)
 root.bind('<Control-l>', clear_page)
 root.bind('<Control-Left>', prevPage)
