@@ -1,0 +1,449 @@
+#!/usr/bin/python3
+
+import os
+import re
+import uuid
+from enum import Enum, auto
+
+import subprocess
+import threading
+import queue
+
+import tkinter
+from tkinter import Tk, Menu, Frame, Button, Scale, Text, HORIZONTAL
+from tkinter.filedialog import askopenfilename
+import pdftotext
+
+
+# event type
+# READING: notify reading in progress
+class TicketPurpose(Enum):
+    READING_ENABLED = auto()
+    READING_DISABLED = auto()
+
+
+# notify main tkinter thread to update GUI
+class Ticket:
+    def __init__(self,
+                 ticket_type: TicketPurpose,
+                 ticket_value=""):
+        self.ticket_type = ticket_type
+        self.ticket_value = ticket_value
+
+
+class GUI:
+
+    # initialize GUI
+    def __init__(self):
+        # pdf currently loaded
+        self.current_pdf = ''
+        # current sentence groups loaded
+        self.current_groups = []
+        # current page number
+        self.current_page = 0
+        # total pages
+        self.page_count = 0
+        # current reading state
+        self.reading = False
+        # reading speed
+        self.speed = 1
+        # highlight color
+        self.highlight_color = 'lightblue'
+
+        # sentence tts mpv generation queue
+        self.tts_files = queue.Queue()
+        # message queue for syncing gui
+        self.message_queue = queue.Queue()
+        # reading queue
+        self.reading_queue = queue.Queue()
+
+        # reading highlighting index
+        self.start_idx = '0.0'
+        self.last_idx = '0.0'
+
+        # tkinter
+        self.root = Tk()
+        self.root.title('TTS')
+        self.root.geometry('1200x800')
+
+        # check message queue
+        self.root.bind("<<CheckQueue>>", self.check_queue)
+
+        # textbox
+        self.text = Text(self.root, height=9000, width=9000, font=("Arial", 15))
+
+        # menu
+        self.menu = Menu(self.root)
+        self.root.config(menu=self.menu)
+
+        # buttons
+        self.button_frame = Frame(self.root)
+
+        self.prev_page_button = Button(self.button_frame, text="Prev",
+                                command=self.prev_page, bg="pink")
+        self.next_page_button = Button(self.button_frame, text="Next",
+                                command=self.next_page, bg="lightblue")
+
+        self.read_page_button = Button(self.button_frame, text="⏵  Read",
+                                command=self.read_aloud_wrapper, bg="lightgreen")
+        self.jump_page_button = Button(self.button_frame, text="Jump",
+                                command=self.jump_page, bg="orange")
+
+        self.button_frame.columnconfigure(0, weight=1)
+        self.button_frame.columnconfigure(1, weight=1)
+        self.button_frame.columnconfigure(2, weight=1)
+        self.button_frame.columnconfigure(3, weight=1)
+
+        self.prev_page_button.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
+        self.next_page_button.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
+        self.read_page_button.grid(row=0, column=2, sticky=tkinter.W+tkinter.E)
+        self.jump_page_button.grid(row=0, column=3, sticky=tkinter.W+tkinter.E)
+
+        # page box
+        self.page_frame = Frame(self.root)
+
+        self.page_box = Text(self.page_frame, height=1, width=5)
+        self.count_box = Text(self.page_frame, height=1, width=5)
+
+        self.page_frame.columnconfigure(0, weight=1)
+        self.page_frame.columnconfigure(1, weight=1)
+
+        self.page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
+        self.count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
+
+        # speed slider
+        self.speed_slider = Scale(self.root, from_=0.5, to=3, digits=3, length=250, resolution=0.25
+                                , orient=HORIZONTAL, command=self.speed_control)
+        self.speed_slider.set(self.speed)
+
+        # keybinds
+        self.init_keybinds()
+
+        # dropdowns
+        self.file_menu = Menu(self.menu, tearoff=False)
+        self.menu.add_cascade(label="File", menu=self.file_menu)
+        self.file_menu.add_command(label="Open PDF", command=self.open_pdf)
+        self.file_menu.add_command(label="Clear", command=self.clear_page)
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Exit", command=self.root.quit)
+
+        # packing GUI elements
+        self.button_frame.pack(fill=tkinter.X, side=tkinter.TOP)
+        self.page_frame.pack(side=tkinter.TOP)
+        self.speed_slider.pack()
+        self.text.pack()
+
+        # start tkinter main loop
+        self.root.mainloop()
+
+    # check messages queue
+    def check_queue(self, event=None):
+        msg = self.message_queue.get()
+
+        if msg.ticket_type == TicketPurpose.READING_ENABLED:
+            self.read_page_button.configure(bg='red', text='⏸ ︎Reading...')
+        elif msg.ticket_type == TicketPurpose.READING_DISABLED:
+            self.read_page_button.configure(bg='lightgreen', text='⏵  Read')
+
+
+    # initialize keybindings
+    def init_keybinds(self):
+        self.root.bind('<Control-a>', self.select_all)
+
+        self.root.bind('<Control-o>', self.open_pdf)
+        self.root.bind('<Control-l>', self.clear_page)
+        self.root.bind('<Control-Left>', self.prev_page)
+        self.root.bind('<Control-Right>', self.next_page)
+        self.root.bind('<Control-r>', self.read_aloud_wrapper)
+        self.root.bind('<Control-j>', self.jump_page)
+
+
+    # reset for new reading task
+    def reset_reading(self):
+        # reset indexes
+        self.first_idx = '0.0'
+        self.last_idx = '0.0'
+
+        # reset sentence groups
+        self.current_groups = []
+        # reset queues
+        while not self.tts_files.empty():
+            self.tts_files.get()
+        while not self.reading_queue.empty():
+            self.reading_queue.get()
+
+
+    # update text with current page
+    def update_text(self):
+        pdf_text = self.current_pdf[self.current_page-1]
+        self.text.delete(1.0, tkinter.END)
+        self.text.insert(1.0, pdf_text)
+
+
+    # update page with new page/pdf
+    def update_page(self):
+        # refresh page numbers
+        page_format = f'{self.current_page}'
+        self.page_box.delete(1.0, tkinter.END)
+        self.page_box.insert(1.0, page_format)
+
+        count_format = f'/{self.page_count}'
+        self.count_box.delete(1.0, tkinter.END)
+        self.count_box.insert(1.0, count_format)
+
+
+    # select all text
+    def select_all(self, event=None):
+        self.text.tag_add(tkinter.SEL, "1.0", tkinter.END)
+        self.text.mark_set(tkinter.INSERT, "1.0")
+        self.text.see(tkinter.INSERT)
+
+
+    # open file
+    def open_pdf(self, event=None):
+
+        file_location = askopenfilename(initialdir="~", title="Select File",
+                                    filetypes=(
+                                                ("PDF Files", "*.pdf"),
+                                                ("TXT Files", "*.txt"),
+                                                ("All Files", "*.*"))
+                                    )
+
+        if file_location[-3:] == "txt":
+            with open(file_location, "r") as f:
+                self.current_txt = f.read()
+
+                self.current_page = 1
+                self.page_count = 1
+                self.text.delete(1.0, tkinter.END)
+                self.text.insert(1.0, current_txt)
+                self.update_page()
+
+        elif file_location[-3:] == "pdf":
+            with open(file_location, "rb") as f:
+                self.current_pdf = pdftotext.PDF(f)
+
+                self.current_page = 1
+                self.page_count = len(self.current_pdf)
+                self.update_text()
+                self.update_page()
+
+
+    # clear textbox
+    def clear_page(self, event=None):
+        self.text.delete(1.0, tkinter.END)
+
+
+    # change to previous page of pdf
+    def prev_page(self, event=None):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.update_text()
+            self.update_page()
+
+
+    # change to next page of pdf
+    def next_page(self, event=None):
+        if self.current_page < self.page_count:
+            self.current_page += 1
+            self.update_text()
+            self.update_page()
+
+
+    # jump to page
+    def jump_page(self, event=None):
+        current_page = int(self.page_box.get(1.0, tkinter.END))
+        if current_page:
+            if current_page <= self.page_count and self.current_page >= 1:
+                self.current_page = current_page
+                self.update_text()
+                self.update_page()
+
+
+    # set speed
+    def speed_control(self, spd):
+        self.speed = spd
+
+
+    # create chunks
+    # either divide by sentences or based on chunk size
+    def create_chunks(self, current_text):
+        # =======================
+        # CHUNKING BY PUNCTUATION
+        # =======================
+        groups = re.split('[\.!?]\s', current_text)
+        # filter any empty chunks
+        self.current_groups = list(filter( lambda x: x, groups))
+
+        # ======================
+        # CHUNKING BY WORD COUNT
+        # ======================
+        # chunk_size = 5
+        # create chunks of size self.chunk_size and store them in self.current_groups
+        # words = current_text.split(' ')
+        # for i in range(0, len(words), self.chunk_size):
+        #     if i+self.chunk_size <= len(words):
+        #         self.current_groups.append(' '.join(words[i:i+self.chunk_size]))
+        #     else:
+        #         self.current_groups.append(' '.join(words[i:]))
+
+    # sanitize input sentence
+    def sanitize_sentence(sentence):
+        # sanitize quotes, brackets, parentheses, colon, semicolon
+        sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
+        sentence = re.sub("[“”’]", '', sentence)
+        sentence = re.sub('"', '', sentence)
+
+        # number word combinations
+        sentence = re.sub('([A-Za-z])(\d)', r'\1 \2', sentence)
+        sentence = re.sub('(\d)([A-Za-z])', r'\1 \2', sentence)
+
+        # hyphenated numbers
+        sentence = re.sub('(\d+)[-–—−]+', r'\1 to ', sentence)
+
+        # comma'd numbers
+        sentence = re.sub(',(\d+)', r' \1', sentence)
+
+        # remove all hyphens
+        sentence = re.sub('-–—−', ' ', sentence)
+
+        # replace all white space with space
+        sentence = re.sub('\s', ' ', sentence)
+
+        return sentence
+
+
+    # highlight a chunk in textbox and update last read location
+    # NOTE: searches from 0.0 to end and can't search backwards
+    #       unless start_idx and last_idx are reset
+    def highlight(self, chunk):
+        # check blank chunk
+        if not chunk:
+            return
+
+        # highlighting multi-line chunks
+        for line in re.split('[\n\t\r]', chunk):
+            self.start_idx = self.text.search(line, self.last_idx, stopindex=tkinter.END)
+            self.last_idx = f'{str(self.start_idx)}+{len(line)}c'
+
+            # set tag to highlight current passage
+            self.text.tag_add('current', self.start_idx, self.last_idx)
+
+            # increment line
+            self.start_idx = float(self.start_idx) + 1
+
+        # highlight tagged passage
+        self.text.tag_config('current', background=f'{self.highlight_color}')
+
+
+    # remove highlighting from tagged text chunks
+    def unhighlight(self):
+        self.text.tag_config('current', background='')
+        self.text.tag_delete('current')
+
+
+    # generate mp3 from mimic given supplied text
+    def generate_mp3(chunk):
+        # unique file name
+        save_file = f'/tmp/tts/{uuid.uuid4().hex}.mp3'
+
+        # sanitize sentence
+        tts_input = GUI.sanitize_sentence(chunk)
+
+        if os.path.exists(save_file):
+            os.system(f'rm {save_file}')
+        with open(save_file, 'w') as f:
+            subprocess.call(['mimic3', '--voice', 'en_US/vctk_low#p276', f'{tts_input}'], stdout=f)
+
+        return save_file
+
+
+    # generate mp3 files of all sentence chunks
+    def mimic_task(self):
+        for chunk in self.current_groups:
+            # check if reading mode is enabled
+            # also check if chunk is empty
+            if self.reading and chunk:
+                save_file = GUI.generate_mp3(chunk)
+                self.tts_files.put((chunk, save_file))
+            else:
+                return
+
+    # play mp3 file in mpv
+    def play_mp3(self, file):
+        # check if reading
+        if self.reading:
+            subprocess.call(['mpv', f'--speed={self.speed}', f'{file}'])
+
+    # asynchronous reading task
+    def reading_task(self):
+        # wait for tts_files queue to supply (sentence, mp3)
+        for _ in range(len(self.current_groups)):
+            (chunk, mp3) = self.tts_files.get()
+            if self.reading:
+                self.play_mp3(mp3)
+            else:
+                return
+
+
+    # wrapper for read_aloud
+    def read_aloud_wrapper(self, event=None):
+        threading.Thread(target=self.read_aloud, daemon=True).start()
+
+
+    # start reading aloud pdf
+    def read_aloud(self):
+
+        # reset reading settings
+        self.reset_reading()
+
+        # toggle reading mode
+        if not self.reading:
+            self.reading = True
+            ticket = Ticket(ticket_type=TicketPurpose.READING_ENABLED)
+            self.message_queue.put(ticket)
+            self.root.event_generate("<<CheckQueue>>")
+        else:
+            self.reading = False
+            ticket = Ticket(ticket_type=TicketPurpose.READING_DISABLED)
+            self.message_queue.put(ticket)
+            self.root.event_generate("<<CheckQueue>>")
+            return
+
+
+        # get current text
+        current_text = self.text.get('1.0', tkinter.END+"-1c")
+
+        # create sentence chunks and store in self.current_groups
+        self.create_chunks(current_text)
+
+        # start mimic mp3 generation task
+        mimic_thread = threading.Thread(target=self.mimic_task, daemon=True)
+        mimic_thread.start()
+
+        # start mpv audio play task
+        read_thread = threading.Thread(target=self.reading_task, daemon=True)
+        read_thread.start()
+
+        # join threads
+        mimic_thread.join()
+        read_thread.join()
+
+        # set reading mode to False
+        self.reading = False
+        ticket = Ticket(ticket_type=TicketPurpose.READING_DISABLED, ticket_value='lightgreen')
+        self.message_queue.put(ticket)
+        self.root.event_generate("<<CheckQueue>>")
+
+
+def main():
+    # create tts directory
+    if not os.path.exists('/tmp/tts'):
+        os.mkdir('/tmp/tts')
+
+    # create GUI object (tkinter window)
+    gui = GUI()
+
+
+if __name__ == '__main__':
+    main()
