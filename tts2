@@ -330,7 +330,7 @@ class GUI:
         sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
         sentence = re.sub("[“”’]", '', sentence)
         sentence = re.sub('"', '', sentence)
-        sentence = re.sub('\.!?', '', sentence)
+        sentence = re.sub('[\.!?]', '', sentence)
 
         # number word combinations
         sentence = re.sub('([A-Za-z])(\d)', r'\1 \2', sentence)
