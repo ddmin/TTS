@@ -308,7 +308,7 @@ class GUI:
         # =======================
         # CHUNKING BY PUNCTUATION
         # =======================
-        groups = re.split('[\.!?]\s', current_text)
+        groups = re.split('[\.!?][\s"“”’]', current_text)
         # filter any empty chunks
         self.current_groups = list(filter( lambda x: x, groups))
 
@@ -326,17 +326,18 @@ class GUI:
 
     # sanitize input sentence
     def sanitize_sentence(sentence):
-        # sanitize quotes, brackets, parentheses, colon, semicolon
+        # sanitize quotes, brackets, parentheses, punctuation
         sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
         sentence = re.sub("[“”’]", '', sentence)
         sentence = re.sub('"', '', sentence)
+        sentence = re.sub('\.!?', '', sentence)
 
         # number word combinations
         sentence = re.sub('([A-Za-z])(\d)', r'\1 \2', sentence)
         sentence = re.sub('(\d)([A-Za-z])', r'\1 \2', sentence)
 
         # ellipses
-        sentence = re.sub('\.+', '\.', sentence)
+        sentence = re.sub('…', '', sentence)
 
         # hyphenated numbers
         sentence = re.sub('(\d+)[-–—−]+', r'\1 to ', sentence)
