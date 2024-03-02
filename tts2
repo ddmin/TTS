@@ -66,6 +66,15 @@ class GUI:
         self.root.title('TTS')
         self.root.geometry('1200x800')
 
+        # initialize tkinter
+        self.init_tkinter()
+
+        # start tkinter main loop
+        self.root.mainloop()
+
+
+    # initalize tkinter
+    def init_tkinter(self):
         # check message queue
         self.root.bind("<<CheckQueue>>", self.check_queue)
 
@@ -78,38 +87,11 @@ class GUI:
 
         # buttons
         self.button_frame = Frame(self.root)
-
-        self.prev_page_button = Button(self.button_frame, text="Prev",
-                                command=self.prev_page, bg="pink")
-        self.next_page_button = Button(self.button_frame, text="Next",
-                                command=self.next_page, bg="lightblue")
-
-        self.read_page_button = Button(self.button_frame, text="⏵  Read",
-                                command=self.read_aloud_wrapper, bg="lightgreen")
-        self.jump_page_button = Button(self.button_frame, text="Jump",
-                                command=self.jump_page, bg="orange")
-
-        self.button_frame.columnconfigure(0, weight=1)
-        self.button_frame.columnconfigure(1, weight=1)
-        self.button_frame.columnconfigure(2, weight=1)
-        self.button_frame.columnconfigure(3, weight=1)
-
-        self.prev_page_button.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
-        self.next_page_button.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
-        self.read_page_button.grid(row=0, column=2, sticky=tkinter.W+tkinter.E)
-        self.jump_page_button.grid(row=0, column=3, sticky=tkinter.W+tkinter.E)
+        self.init_buttons()
 
         # page box
         self.page_frame = Frame(self.root)
-
-        self.page_box = Text(self.page_frame, height=1, width=5)
-        self.count_box = Text(self.page_frame, height=1, width=5)
-
-        self.page_frame.columnconfigure(0, weight=1)
-        self.page_frame.columnconfigure(1, weight=1)
-
-        self.page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
-        self.count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
+        self.init_page_box()
 
         # speed slider
         self.speed_slider = Scale(self.root, from_=0.5, to=3, digits=3, length=250, resolution=0.25
@@ -133,8 +115,54 @@ class GUI:
         self.speed_slider.pack()
         self.text.pack()
 
-        # start tkinter main loop
-        self.root.mainloop()
+
+    # initialize keybindings
+    def init_keybinds(self):
+        self.root.bind('<Control-a>', self.select_all)
+        self.root.bind('<Control-BackSpace>', self.delete_word)
+
+        self.root.bind('<Control-o>', self.open_pdf)
+        self.root.bind('<Control-l>', self.clear_page)
+        self.root.bind('<Control-Left>', self.prev_page)
+        self.root.bind('<Control-Right>', self.next_page)
+        self.root.bind('<Control-r>', self.read_aloud_wrapper)
+        self.root.bind('<Control-j>', self.jump_page)
+
+
+    # initialize buttons
+    def init_buttons(self):
+        self.prev_page_button = Button(self.button_frame, text="Prev",
+                                command=self.prev_page, bg="pink")
+        self.next_page_button = Button(self.button_frame, text="Next",
+                                command=self.next_page, bg="lightblue")
+
+        self.read_page_button = Button(self.button_frame, text="⏵  Read",
+                                command=self.read_aloud_wrapper, bg="lightgreen")
+        self.jump_page_button = Button(self.button_frame, text="Jump",
+                                command=self.jump_page, bg="orange")
+
+        self.button_frame.columnconfigure(0, weight=1)
+        self.button_frame.columnconfigure(1, weight=1)
+        self.button_frame.columnconfigure(2, weight=1)
+        self.button_frame.columnconfigure(3, weight=1)
+
+        self.prev_page_button.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
+        self.next_page_button.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
+        self.read_page_button.grid(row=0, column=2, sticky=tkinter.W+tkinter.E)
+        self.jump_page_button.grid(row=0, column=3, sticky=tkinter.W+tkinter.E)
+
+
+    # initialize page box
+    def init_page_box(self):
+        self.page_box = Text(self.page_frame, height=1, width=5)
+        self.count_box = Text(self.page_frame, height=1, width=5)
+
+        self.page_frame.columnconfigure(0, weight=1)
+        self.page_frame.columnconfigure(1, weight=1)
+
+        self.page_box.grid(row=0, column=0, sticky=tkinter.W+tkinter.E)
+        self.count_box.grid(row=0, column=1, sticky=tkinter.W+tkinter.E)
+
 
     # check messages queue
     def check_queue(self, event=None):
@@ -146,18 +174,6 @@ class GUI:
             self.read_page_button.configure(bg='lightgreen', text='⏵  Read')
 
 
-    # initialize keybindings
-    def init_keybinds(self):
-        self.root.bind('<Control-a>', self.select_all)
-
-        self.root.bind('<Control-o>', self.open_pdf)
-        self.root.bind('<Control-l>', self.clear_page)
-        self.root.bind('<Control-Left>', self.prev_page)
-        self.root.bind('<Control-Right>', self.next_page)
-        self.root.bind('<Control-r>', self.read_aloud_wrapper)
-        self.root.bind('<Control-j>', self.jump_page)
-
-
     # reset for new reading task
     def reset_reading(self):
         # reset indexes
@@ -166,14 +182,17 @@ class GUI:
 
         # reset sentence groups
         self.current_groups = []
+
         # reset queues
+        while not self.message_queue.empty():
+            self.message_queue.get()
         while not self.tts_files.empty():
             self.tts_files.get()
         while not self.reading_queue.empty():
             self.reading_queue.get()
 
 
-    # update text with current page
+    # update text with current page (PDF)
     def update_text(self):
         pdf_text = self.current_pdf[self.current_page-1]
         self.text.delete(1.0, tkinter.END)
@@ -199,6 +218,23 @@ class GUI:
         self.text.see(tkinter.INSERT)
 
 
+    # delete word (WIP)
+    def delete_word(self, event=None):
+        cursor_idx = self.text.index(tkinter.INSERT)
+        cursor_idx_y = cursor_idx.split('.')[0]
+
+        current_text_top = self.text.get('0.0', cursor_idx)
+        current_text_line = self.text.index("insert linestart", "insert lineend")
+        current_text_bottom = self.text.get(cursor_idx, tkinter.END)
+
+        delete_to = current_text_line.rfind(' ')
+
+        print("TOP:", current_text_top) # FIXME
+        print("BOTTOM:", current_text_bottom) # FIXME
+        print("CURRENT:", current_text_line, '\n', cursor_idx) # FIXME
+        print(cursor_idx_y) #FIXME
+
+
     # open file
     def open_pdf(self, event=None):
 
@@ -215,8 +251,9 @@ class GUI:
 
                 self.current_page = 1
                 self.page_count = 1
+
                 self.text.delete(1.0, tkinter.END)
-                self.text.insert(1.0, current_txt)
+                self.text.insert(1.0, self.current_txt)
                 self.update_page()
 
         elif file_location[-3:] == "pdf":
@@ -353,7 +390,7 @@ class GUI:
         if os.path.exists(save_file):
             os.system(f'rm {save_file}')
         with open(save_file, 'w') as f:
-            subprocess.call(['mimic3', '--voice', 'en_US/vctk_low#p276', f'{tts_input}'], stdout=f)
+            subprocess.run(['mimic3', '--voice', 'en_US/vctk_low#p276', f'{tts_input}'], stdout=f)
 
         return save_file
 
@@ -366,14 +403,16 @@ class GUI:
             if self.reading and chunk:
                 save_file = GUI.generate_mp3(chunk)
                 self.tts_files.put((chunk, save_file))
-            else:
+            elif not self.reading:
                 return
+
 
     # play mp3 file in mpv
     def play_mp3(self, file):
         # check if reading
         if self.reading:
-            subprocess.call(['mpv', f'--speed={self.speed}', f'{file}'])
+            subprocess.run(['mpv', f'--speed={self.speed}', f'{file}'])
+
 
     # asynchronous reading task
     def reading_task(self):
