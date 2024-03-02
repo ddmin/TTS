@@ -119,7 +119,6 @@ class GUI:
     # initialize keybindings
     def init_keybinds(self):
         self.root.bind('<Control-a>', self.select_all)
-        self.root.bind('<Control-BackSpace>', self.delete_word)
 
         self.root.bind('<Control-o>', self.open_pdf)
         self.root.bind('<Control-l>', self.clear_page)
@@ -216,23 +215,6 @@ class GUI:
         self.text.tag_add(tkinter.SEL, "1.0", tkinter.END)
         self.text.mark_set(tkinter.INSERT, "1.0")
         self.text.see(tkinter.INSERT)
-
-
-    # delete word
-    def delete_word(self, event=None):
-        cursor_idx = self.text.index(tkinter.INSERT)
-        cursor_idx_y = cursor_idx.split('.')[0]
-
-        current_text_top = self.text.get('0.0', cursor_idx)
-        current_text_line = self.text.index("insert linestart", "insert lineend")
-        current_text_bottom = self.text.get(cursor_idx, tkinter.END)
-
-        delete_to = current_text_line.rfind(' ')
-
-        print("TOP:", current_text_top) # FIXME
-        print("BOTTOM:", current_text_bottom) # FIXME
-        print("CURRENT:", current_text_line, '\n', cursor_idx) # FIXME
-        print(cursor_idx_y) #FIXME
 
 
     # open file
