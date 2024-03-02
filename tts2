@@ -326,6 +326,9 @@ class GUI:
 
     # sanitize input sentence
     def sanitize_sentence(sentence):
+        # lowercase
+        sentence = sentence.lower()
+
         # sanitize quotes, brackets, parentheses, punctuation
         sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
         sentence = re.sub("[“”’]", '', sentence)
