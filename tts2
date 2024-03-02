@@ -218,7 +218,7 @@ class GUI:
         self.text.see(tkinter.INSERT)
 
 
-    # delete word (WIP)
+    # delete word
     def delete_word(self, event=None):
         cursor_idx = self.text.index(tkinter.INSERT)
         cursor_idx_y = cursor_idx.split('.')[0]
@@ -334,6 +334,9 @@ class GUI:
         # number word combinations
         sentence = re.sub('([A-Za-z])(\d)', r'\1 \2', sentence)
         sentence = re.sub('(\d)([A-Za-z])', r'\1 \2', sentence)
+
+        # ellipses
+        sentence = re.sub('\.+', '\.', sentence)
 
         # hyphenated numbers
         sentence = re.sub('(\d+)[-–—−]+', r'\1 to ', sentence)
