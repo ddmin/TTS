@@ -3,7 +3,7 @@
 A TTS gui powered by ~~gTTS api~~ mimic3.
 <sup>(because I hate reading)</sup>
 
-![tts gui](tts.png)
+![tts gui](assets/tts.png)
 
 ## Dependencies
 

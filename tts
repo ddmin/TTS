@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# (highlighting works)
 
 import os
 import re

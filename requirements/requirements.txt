@@ -1,7 +1,6 @@
 certifi==2021.10.8
 charset-normalizer==2.0.12
 click==8.0.3
-gTTS==2.2.3
 idna==3.3
 pdftotext==2.2.2
 requests==2.27.1
