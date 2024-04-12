@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# screenreader: rudimentary screen reader using tesseract and mimic3
+# screenreader: ocr -> tts
+
+set -e
 
 OCR_DIR="/tmp/screenreader-tts"
 MP3_DIR="/tmp/screenreader-tts/mp3"
-
 mkdir -p $OCR_DIR
 mkdir -p $MP3_DIR
 
@@ -13,14 +14,21 @@ img_filename=`date +"screenreader-$datern"`
 tts_filename=`date +"tts-$datern"`
 
 # gnome
-# gnome-screenshot -a -f $OCR_DIR/$img_filename.png
+# gnome-screenshot -a -f $OCR_DIR/$img_filename.png || exit 1
 
 # xfce
-xfce4-screenshooter -r -s "$OCR_DIR"/"$img_filename.png"
+xfce4-screenshooter -r -s "$OCR_DIR"/"$img_filename.png" || exit 1
+
+if ! [ -f "$OCR_DIR"/"$img_filename".png ]; then
+    exit
+fi
 
 # teseract saves $img_filename as .txt
-tesseract -l eng "$OCR_DIR"/"$img_filename.png" "$OCR_DIR"/"$img_filename"
+notify-send -t 5000 -i "$HOME/.icons/tts.png" "screenreader" "Reading image with Tesseract..." && tesseract -l eng "$OCR_DIR"/"$img_filename.png" "$OCR_DIR"/"$img_filename"
 
+notify-send -t 7000 -i "$HOME/.icons/tts.png" "screenreader" "Generating TTS file..."
+
+# mimic3
 cat "$OCR_DIR"/"$img_filename".txt | tr '[:upper:]' '[:lower:]' | mimic3 --voice en_US/vctk_low#p276 > "$MP3_DIR"/"$tts_filename".mp3
 
 mpv \
@@ -30,4 +38,5 @@ mpv \
     --force-window \
     --keep-open="always" \
     --cover-art-files="$HOME/.icons/tts_bg.png" \
+    --speed=1.5 \
     "$MP3_DIR"/"$tts_filename".mp3
