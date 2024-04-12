@@ -4,8 +4,11 @@
 
 set -e
 
+SPEED=1.33
+
 OCR_DIR="/tmp/screenreader-tts"
 MP3_DIR="/tmp/screenreader-tts/mp3"
+
 mkdir -p $OCR_DIR
 mkdir -p $MP3_DIR
 
@@ -40,5 +43,5 @@ mpv \
     --force-window \
     --keep-open="always" \
     --cover-art-files="$HOME/.icons/tts_bg.png" \
-    --speed=1.5 \
+    --speed=$SPEED \
     "$MP3_DIR"/"$tts_filename".mp3
