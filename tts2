@@ -183,12 +183,9 @@ class GUI:
         self.current_groups = []
 
         # reset queues
-        while not self.message_queue.empty():
-            self.message_queue.get()
-        while not self.tts_files.empty():
-            self.tts_files.get()
-        while not self.reading_queue.empty():
-            self.reading_queue.get()
+        self.message_queue = queue.Queue()
+        self.tts_files = queue.Queue()
+        self.reading_queue = queue.Queue()
 
 
     # update text with current page (PDF)
@@ -290,7 +287,7 @@ class GUI:
         # =======================
         # CHUNKING BY PUNCTUATION
         # =======================
-        groups = re.split('[\.!?][\s"“”’]', current_text)
+        groups = re.split('[\.!?;:][\s"“”’]', current_text)
         # filter any empty chunks
         self.current_groups = list(filter( lambda x: x, groups))
 
@@ -306,10 +303,48 @@ class GUI:
         #     else:
         #         self.current_groups.append(' '.join(words[i:]))
 
+
+    # special pronounciations
+    def pronounce_acronym(word):
+        LETTER_PRONOUNCE = {'a': 'aigh', 'b': 'bee', 'c': 'see',
+                            'd': 'dee', 'e': 'e', 'f': 'eff',
+                            'g': 'jee', 'h': 'aigh-ch', 'i': 'eye',
+                            'j': 'jay', 'k': 'kay', 'l': 'elle',
+                            'm': 'em', 'n': 'enn', 'o': 'oh',
+                            'p': 'pea', 'q': 'cue', 'r': 'arr',
+                            's': 'ess', 't': 'tea', 'u': 'you',
+                            'v': 'vee', 'w': 'double-you', 'x': 'ecks',
+                            'y': 'why', 'z': 'zee'}
+
+        # acronyms
+        acronym = ''
+        if isinstance(word, re.Match):
+            word = word.group(0)
+
+        word = word.replace('.', '')
+
+        # caps lock "detection"
+        if len(word) > 4:
+            return word
+
+
+        for letter in word.lower():
+            if letter in LETTER_PRONOUNCE:
+                acronym += LETTER_PRONOUNCE[letter] + '-'
+            else:
+                acronym += letter
+
+        return acronym[:-1]
+
+
     # sanitize input sentence
     def sanitize_sentence(sentence):
-        # lowercase
-        sentence = sentence.lower()
+
+        # decimal numbers
+        sentence = re.sub('(\d)\.(\d+)', r' \1 point \2', sentence)
+
+        # acronyms separated by periods
+        sentence = re.sub(r'[A-Za-z](\.[A-Za-z])+', GUI.pronounce_acronym, sentence)
 
         # sanitize quotes, brackets, parentheses, punctuation
         sentence = re.sub('[\[\]\{\}\(\)\:;_*]', '', sentence)
@@ -335,6 +370,16 @@ class GUI:
 
         # replace all white space with space
         sentence = re.sub('\s', ' ', sentence)
+
+        # acronyms
+        sentence = re.sub('[A-Z][A-Z]+', GUI.pronounce_acronym, sentence)
+
+        # one letter fragments
+        if len(sentence) < 2:
+            sentence = GUI.pronounce_acronym(sentence)
+
+        # lowercase
+        sentence = sentence.lower()
 
         return sentence
 
@@ -436,6 +481,7 @@ class GUI:
             ticket = Ticket(ticket_type=TicketPurpose.READING_DISABLED)
             self.message_queue.put(ticket)
             self.root.event_generate("<<CheckQueue>>")
+            self.reset_reading()
             return
 
 
@@ -456,6 +502,9 @@ class GUI:
         # join threads
         mimic_thread.join()
         read_thread.join()
+
+        # reset reading
+        self.reset_reading()
 
         # set reading mode to False
         self.reading = False
