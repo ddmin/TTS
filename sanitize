@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+
+# sanitize: sanitize text input from stdin
+#   1. join hyphenated words separated by new line
+#   2. remove repeated characters
+#   3. remove special characters
+
+import re
+import sys
+
+lines=sys.stdin.read().splitlines()
+
+joined = ''
+
+# join words separated by hyphen and newline
+END_JOIN = '−-–—'
+
+for line in lines:
+    if line and line[-1] in END_JOIN:
+        joined += line
+    else:
+        joined += line + ' '
+
+# removed repeated characters
+joined = re.sub(r'([^\w\s])\1', ' ', joined)
+
+# remove special characters
+joined = re.sub(r'\s?[^\w\s]\s', ' ', joined)
+
+# remove trailing whitespace
+joined = joined.strip()
+
+print(joined, end='')

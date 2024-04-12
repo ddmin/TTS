@@ -24,12 +24,14 @@ if ! [ -f "$OCR_DIR"/"$img_filename".png ]; then
 fi
 
 # teseract saves $img_filename as .txt
-notify-send -t 5000 -i "$HOME/.icons/tts.png" "screenreader" "Reading image with Tesseract..." && tesseract -l eng "$OCR_DIR"/"$img_filename.png" "$OCR_DIR"/"$img_filename"
+tesseract -l eng "$OCR_DIR"/"$img_filename.png" "$OCR_DIR"/"$img_filename"
 
-notify-send -t 7000 -i "$HOME/.icons/tts.png" "screenreader" "Generating TTS file..."
+notify-send -u critical -t 0 -i "$HOME/.icons/tts.png" "screenreader" "Generating text to speech..."
 
 # mimic3
-cat "$OCR_DIR"/"$img_filename".txt | tr '[:upper:]' '[:lower:]' | mimic3 --voice en_US/vctk_low#p276 > "$MP3_DIR"/"$tts_filename".mp3
+cat "$OCR_DIR"/"$img_filename".txt | sanitize | tr '[:upper:]' '[:lower:]' | mimic3 --voice en_US/vctk_low#p276 > "$MP3_DIR"/"$tts_filename".mp3
+
+pkill xfce4-notifyd
 
 mpv \
     --ontop \
