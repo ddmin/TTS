@@ -4,7 +4,7 @@
 
 set -e
 
-SPEED=1.33
+SPEED=1.1
 
 OCR_DIR="/tmp/screenreader-tts"
 MP3_DIR="/tmp/screenreader-tts/mp3"
