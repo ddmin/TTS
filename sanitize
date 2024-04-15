@@ -2,11 +2,14 @@
 
 # sanitize: sanitize text input from stdin
 #   1. join hyphenated words separated by new line
-#   2. remove repeated characters
-#   3. remove special characters
+#   2. remove parenthesis/brackets
+#   3. remove repeated characters
+#   4. remove special characters
+#   5. make all lowercase
 
 import re
 import sys
+
 
 lines=sys.stdin.read().splitlines()
 
@@ -21,11 +24,14 @@ for line in lines:
     else:
         joined += line + ' '
 
+# remove parenthesis
+joined = re.sub(r'[\(\[](.+?)[\)\]]', ' ', joined)
+
 # removed repeated characters
 joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
 
 # remove special characters
-joined = re.sub(r'\s?[^\.?!,;:\w\s]\s', ' ', joined)
+joined = re.sub(r'\s?[^\.?!,;:\-\w\s]\s', ' ', joined)
 
 # remove trailing whitespace
 joined = joined.strip()
