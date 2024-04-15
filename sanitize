@@ -30,4 +30,7 @@ joined = re.sub(r'\s?[^\.?!,;:\w\s]\s', ' ', joined)
 # remove trailing whitespace
 joined = joined.strip()
 
+# all lowercase
+joined = joined.lower()
+
 print(joined, end='')

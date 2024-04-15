@@ -32,9 +32,15 @@ tesseract -l eng "$OCR_DIR"/"$img_filename.png" "$OCR_DIR"/"$img_filename"
 notify-send -u critical -t 0 -i "$HOME/.icons/tts.png" "screenreader" "Generating text to speech..."
 
 # mimic3
-cat "$OCR_DIR"/"$img_filename".txt | sanitize | tr '[:upper:]' '[:lower:]' | mimic3 --voice en_US/vctk_low#p276 > "$MP3_DIR"/"$tts_filename".mp3
+cat "$OCR_DIR"/"$img_filename".txt | sanitize | mimic3 --voice en_US/vctk_low#p276 > "$MP3_DIR"/"$tts_filename".mp3
 
+# kill notification
 pkill xfce4-notifyd
+
+# kill existing process
+PID=`pgrep -f --list-full mpv | grep "$MP3_DIR" | awk '{print $1}'`
+echo $PID
+! [[ -z $PID ]] && kill $PID
 
 mpv \
     --ontop \
