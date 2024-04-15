@@ -39,7 +39,6 @@ pkill xfce4-notifyd
 
 # kill existing process
 PID=`pgrep -f --list-full mpv | grep "$MP3_DIR" | awk '{print $1}'`
-echo $PID
 ! [[ -z $PID ]] && kill $PID
 
 mpv \
