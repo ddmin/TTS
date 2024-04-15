@@ -17,7 +17,7 @@ END_JOIN = '−-–—'
 
 for line in lines:
     if line and line[-1] in END_JOIN:
-        joined += line
+        joined += line[:-1]
     else:
         joined += line + ' '
 
