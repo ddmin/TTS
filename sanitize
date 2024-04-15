@@ -22,10 +22,10 @@ for line in lines:
         joined += line + ' '
 
 # removed repeated characters
-joined = re.sub(r'([^\w\s])\1', ' ', joined)
+joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
 
 # remove special characters
-joined = re.sub(r'\s?[^\w\s]\s', ' ', joined)
+joined = re.sub(r'\s?[^\.?!,;:\w\s]\s', ' ', joined)
 
 # remove trailing whitespace
 joined = joined.strip()
