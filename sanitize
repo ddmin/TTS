@@ -24,11 +24,11 @@ for line in lines:
     else:
         joined += line + ' '
 
-# remove parenthesis
-joined = re.sub(r'\((.+?)\)', ' ', joined)
+# remove dates (references/citation)
+date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
+#           ([not parenthesis]* [number][number]+ [not parenthesis]*)
 
-# remove brackets
-joined = re.sub(r'\[(.+?)\]', ' ', joined)
+joined = re.sub(date_rx, ' ', joined)
 
 # removed repeated characters
 joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
