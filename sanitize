@@ -30,11 +30,12 @@ date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
 
 joined = re.sub(date_rx, ' ', joined)
 
-# removed repeated characters
-joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
-
 # remove special characters
 joined = re.sub(r'\s?[^\.?!,;:\-\w\s]\s', ' ', joined)
+joined = re.sub(r'[^\w\s][^\w\s]', ' ', joined)
+
+# removed repeated characters
+joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
 
 # remove trailing whitespace
 joined = joined.strip()
