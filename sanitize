@@ -19,7 +19,9 @@ joined = ''
 END_JOIN = '−-–—'
 
 for line in lines:
-    if line and line[-1] in END_JOIN:
+    if not line.strip():
+        continue
+    if line[-1] in END_JOIN:
         joined += line[:-1]
     else:
         joined += line + ' '
