@@ -11,38 +11,52 @@ import re
 import sys
 
 
-lines=sys.stdin.read().splitlines()
+def main():
+    try:
+        lines=sys.stdin.read().splitlines()
+    except:
+        exit()
 
-joined = ''
+    joined = ''
 
-# join words separated by hyphen and newline
-END_JOIN = '−-–—'
+    # join words separated by hyphen and newline
+    END_JOIN = '−-–—'
 
-for line in lines:
-    if not line.strip():
-        continue
-    if line[-1] in END_JOIN:
-        joined += line[:-1]
-    else:
-        joined += line + ' '
+    for line in lines:
+        if not line.strip():
+            continue
+        if line[-1] in END_JOIN:
+            joined += line[:-1]
+        else:
+            joined += line + ' '
 
-# remove dates (references/citation)
-date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
-#           ([not parenthesis]* [number][number]+ [not parenthesis]*)
+    # remove dates (references/citation)
+    date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
+    #           ([not parenthesis]* [number][number]+ [not parenthesis]*)
 
-joined = re.sub(date_rx, ' ', joined)
+    # remove academic citations
+    citation_rx = "\[[^\[\]]*\d\d+?[^\[\]]*\]"
+    #               ([not bracket]* [number][number]+ [not bracket]*)
 
-# remove special characters
-joined = re.sub(r'\s?[^\.?!,;:\-\w\s]\s', ' ', joined)
-joined = re.sub(r'[^\w\s][^\w\s]', ' ', joined)
+    joined = re.sub(date_rx, ' ', joined)
+    joined = re.sub(citation_rx, ' ', joined)
 
-# removed repeated characters
-joined = re.sub(r'([^\w][^\w]+)\1', ' ', joined)
+    # remove special characters
+    joined = re.sub(r'\s?[^\.?!,;:\-\w\s\[\]\(\)]\s', ' ', joined)
 
-# remove trailing whitespace
-joined = joined.strip()
+    # removed repeated characters
+    joined = re.sub(r'([^A-Za-z0-9])(\1+)', r'\1', joined)
+    joined = re.sub(r'([^A-Za-z0-9]+)(\1+)', r'\1', joined)
+    joined = re.sub(r'(\s)\s', r'\1', joined)
 
-# all lowercase
-joined = joined.lower()
+    # remove trailing whitespace
+    joined = joined.strip()
 
-print(joined, end='')
+    # all lowercase
+    joined = joined.lower()
+
+    print(joined, end='')
+
+
+if __name__ == '__main__':
+    main()
