@@ -20,27 +20,43 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import pdftotext
 import click
+import tqdm
 import uuid
 import os
 
 SAVE_DIRECTORY = "/tmp/ktts"
 
 
+def get_wav_length(wav_file):
+    """Return the duration of a wav file"""
+    wav_length_cmd = (
+        f'ffprobe -i {wav_file} -show_entries format=duration -v quiet -of csv="p=0"'
+    )
+    output = subprocess.Popen(
+        wav_length_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    wav_length, _ = output.communicate()
+    return wav_length
+
+
 def generate_tts_files(page_names, page_contents):
-    """Generate a tts (mp3) file for each page"""
-    mp3s = {}
+    """Generate tts (wav) files for each page"""
+    progress = tqdm.tqdm(total=len(page_names), desc="Generating TTS")
+
+    wavs = {}
     with ThreadPoolExecutor(max_workers=5) as executor:
         for page, page_content in zip(page_names, page_contents):
 
             def mimic_worker():
-                mp3s[page] = generate_tts(page_content)
+                wavs[page] = generate_tts(page_content)
 
             futures = [executor.submit(mimic_worker)]
 
             for future in as_completed(futures):
                 future.result()
+                progress.update(n=1)
 
-    return mp3s
+    return wavs
 
 
 def write_file(text):
@@ -53,8 +69,8 @@ def write_file(text):
 
 
 def generate_tts(text):
-    """Use mimic3 to generate mp3 files."""
-    output = f"{SAVE_DIRECTORY}/{unique_identifier()}.mp3"
+    """Use mimic3 to generate wav files."""
+    output = f"{SAVE_DIRECTORY}/{unique_identifier()}.wav"
     text_file = write_file(text)
 
     text = subprocess.Popen(["cat", text_file], stdout=subprocess.PIPE)
@@ -70,8 +86,10 @@ def generate_tts(text):
     return output
 
 
-def setup():
-    """Create save directory."""
+def setup(save_file_name):
+    """Setup related processes."""
+
+    # create save directory
     if not os.path.exists(SAVE_DIRECTORY):
         os.mkdir(SAVE_DIRECTORY)
 
@@ -84,7 +102,8 @@ def unique_identifier():
 @click.command()
 @click.argument("file", type=click.File("rb"), nargs=1)
 def main(file):
-    setup()
+    save_file_name = ".".join(file.name.split(".")[:-1]) + ".wav"
+    setup(save_file_name)
 
     if file.name[-3:] == "pdf":
         pdf = pdftotext.PDF(file)
@@ -109,9 +128,34 @@ def main(file):
         page_names = [file.name]
         page_contents = pages
 
+    assert len(page_names) == len(page_contents)
+
+    wavs = generate_tts_files(page_names, page_contents)
+
     print(page_names)  # REMOVE
-    mp3s = generate_tts_files(page_names, page_contents)
-    print(mp3s)  # REMOVE
+    print(wavs)  # REMOVE
+
+    concat_file = ""
+    wav_lengths = []
+    for page in page_names:
+        wav_file = wavs[page]
+
+        wav_lengths.append(get_wav_length(wav_file))
+        concat_file += f"file '{wav_file}'\n"
+
+    wav_lengths = list(map(lambda x: float(x), wav_lengths))
+    print(wav_lengths)  # REMOVE
+
+    concat_file = concat_file[:-1]
+
+    wav_list = f"{SAVE_DIRECTORY}/wav-list.txt"
+    with open(wav_list, "w") as f:
+        f.write(concat_file)
+
+    concat_cmd = (
+        f"ffmpeg -v quiet -f concat -safe 0 -i {wav_list} -c copy {save_file_name}"
+    )
+    subprocess.run(concat_cmd, shell=True)
 
 
 if __name__ == "__main__":
