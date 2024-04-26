@@ -16,9 +16,9 @@
 # TODO: https://community.openconversational.ai/t/how-to-use-mimic3-directly-from-python-code/12778
 
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import pdftotext
-import sys
 import click
 import uuid
 import os
@@ -26,14 +26,47 @@ import os
 SAVE_DIRECTORY = "/tmp/ktts"
 
 
+def generate_tts_files(page_names, page_contents):
+    """Generate a tts (mp3) file for each page"""
+    mp3s = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        for page, page_content in zip(page_names, page_contents):
+
+            def mimic_worker():
+                mp3s[page] = generate_tts(page_content)
+
+            futures = [executor.submit(mimic_worker)]
+
+            for future in as_completed(futures):
+                future.result()
+
+    return mp3s
+
+
+def write_file(text):
+    """Write text to a temporary txt file."""
+    output = f"{SAVE_DIRECTORY}/{unique_identifier()}.txt"
+    with open(output, "w") as f:
+        f.write(text)
+
+    return output
+
+
 def generate_tts(text):
     """Use mimic3 to generate mp3 files."""
-    output = f'{SAVE_DIRECTORY}/{unique_identifier()}.mp3'
-    print(output)
-    text = subprocess.Popen(['echo', '"' + text +'"'], stdout=subprocess.PIPE)
-    sanitize = subprocess.Popen(['sanitize'], stdin=text.stdout, stdout=subprocess.PIPE)
-    with open(output, 'w') as f:
-        subprocess.Popen(['mimic3', '--voice', 'en_US/vctk_low#p276'], stdin=sanitize.stdout, stdout=f, stderr=subprocess.DEVNULL)
+    output = f"{SAVE_DIRECTORY}/{unique_identifier()}.mp3"
+    text_file = write_file(text)
+
+    text = subprocess.Popen(["cat", text_file], stdout=subprocess.PIPE)
+    sanitize = subprocess.Popen(["sanitize"], stdin=text.stdout, stdout=subprocess.PIPE)
+    with open(output, "w") as f:
+        mimic = subprocess.Popen(
+            ["mimic3", "--voice", "en_US/vctk_low#p276"],
+            stdin=sanitize.stdout,
+            stdout=f,
+            stderr=subprocess.DEVNULL,
+        )
+        mimic.wait()
     return output
 
 
@@ -76,7 +109,9 @@ def main(file):
         page_names = [file.name]
         page_contents = pages
 
-    generate_tts('hello')
+    print(page_names)  # REMOVE
+    mp3s = generate_tts_files(page_names, page_contents)
+    print(mp3s)  # REMOVE
 
 
 if __name__ == "__main__":

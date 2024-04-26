@@ -13,14 +13,14 @@ import sys
 
 def main():
     try:
-        lines=sys.stdin.read().splitlines()
+        lines = sys.stdin.read().splitlines()
     except:
         exit()
 
-    joined = ''
+    joined = ""
 
     # join words separated by hyphen and newline
-    END_JOIN = '−-–—'
+    END_JOIN = "−-–—"
 
     for line in lines:
         if not line.strip():
@@ -28,7 +28,7 @@ def main():
         if line[-1] in END_JOIN:
             joined += line[:-1]
         else:
-            joined += line + ' '
+            joined += line + " "
 
     # remove dates (references/citation)
     date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
@@ -38,16 +38,16 @@ def main():
     citation_rx = "\[[^\[\]]*\d\d+?[^\[\]]*\]"
     #               ([not bracket]* [number][number]+ [not bracket]*)
 
-    joined = re.sub(date_rx, ' ', joined)
-    joined = re.sub(citation_rx, ' ', joined)
+    joined = re.sub(date_rx, " ", joined)
+    joined = re.sub(citation_rx, " ", joined)
 
     # remove special characters
-    joined = re.sub(r'\s?[^\.?!,;:\-\w\s\[\]\(\)]\s', ' ', joined)
+    joined = re.sub(r"\s?[^\.?!,;:\-\w\s\[\]\(\)]\s", " ", joined)
 
     # removed repeated characters
-    joined = re.sub(r'([^A-Za-z0-9])(\1+)', r'\1', joined)
-    joined = re.sub(r'([^A-Za-z0-9]+)(\1+)', r'\1', joined)
-    joined = re.sub(r'(\s)\s', r'\1', joined)
+    joined = re.sub(r"([^A-Za-z0-9])(\1+)", r"\1", joined)
+    joined = re.sub(r"([^A-Za-z0-9]+)(\1+)", r"\1", joined)
+    joined = re.sub(r"(\s)\s", r"\1", joined)
 
     # remove trailing whitespace
     joined = joined.strip()
@@ -55,8 +55,8 @@ def main():
     # all lowercase
     joined = joined.lower()
 
-    print(joined, end='')
+    print(joined, end="")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
