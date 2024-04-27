@@ -1,20 +1,8 @@
 #!/usr/bin/python3
 # ktts (聞tts): converts text file into mp3
 
-# TODO: click
-# TODO: separate pages with ##Page 1## -> into chapters
-# TODO: dump pdf text -> txt file -> $EDITOR txt -> mimic3 -> mpv
-# TODO: dump pdf text -> txt file -> $EDITOR txt -> mimic3 -> mpv
-# TODO: sanitize - test bracketed words
 
-# TODO: concat files
-# https://superuser.com/questions/314239/how-to-join-merge-many-mp3-files
-
-# TODO: ffmpeg get duration
-# https://stackoverflow.com/questions/6239350/how-to-extract-duration-time-from-ffmpeg-output
-
-# TODO: https://community.openconversational.ai/t/how-to-use-mimic3-directly-from-python-code/12778
-
+# TODO: flag to select page range
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
@@ -24,7 +12,50 @@ import tqdm
 import uuid
 import os
 
+
 SAVE_DIRECTORY = "/tmp/ktts"
+TTS_IMAGE = "~/.icons/tts_bg.png"
+SAVE_FILE_EXT = ".mp4"
+
+if not os.cpu_count() is None:
+    MAXIMUM_THREADS = max(os.cpu_count() - 4, 1)
+else:
+    MAXIMUM_THREADS = 1
+
+
+def write_ffmpeg_metadata(base_name, page_names, wav_lengths):
+    """Write ffmpeg metadata for title and chapters (https://wiki.multimedia.cx/index.php/FFmpeg_Metadata)"""
+
+    metadata_file = f"{SAVE_DIRECTORY}/metadata.txt"
+
+    metadata = [
+        ";FFMETADATA1",
+        f"title={base_name}",
+    ]
+
+    start = 0
+    end = -1
+    chapters = []
+
+    assert len(page_names) == len(wav_lengths)
+    if len(page_names) > 1 and len(wav_lengths) > 1:
+        for page, wav_length in zip(page_names[:-1], wav_lengths[:-1]):
+            start = end + 1
+            end = start + wav_length - 1
+            chapters.append((page, (start, end)))
+
+    # last wav file marked to end (or single file)
+    start = end + 1
+    chapters.append((page_names[-1], (start, start + wav_lengths[-1])))
+
+    for chapter, (start, end) in chapters:
+        metadata.extend(["[CHAPTER]", "TIMEBASE=1/1000"])
+        metadata.extend([f"START={start}", f"END={end}", f"title={chapter}"])
+
+    with open(metadata_file, "w") as f:
+        f.write("\n".join(metadata))
+
+    return metadata_file
 
 
 def get_wav_length(wav_file):
@@ -43,18 +74,21 @@ def generate_tts_files(page_names, page_contents):
     """Generate tts (wav) files for each page"""
     progress = tqdm.tqdm(total=len(page_names), desc="Generating TTS")
 
-    wavs = {}
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    futures = []
+    with ThreadPoolExecutor(max_workers=MAXIMUM_THREADS) as executor:
         for page, page_content in zip(page_names, page_contents):
 
-            def mimic_worker():
-                wavs[page] = generate_tts(page_content)
+            def mimic_worker(page):
+                return page, generate_tts(page_content)
 
-            futures = [executor.submit(mimic_worker)]
+            futures.append(executor.submit(mimic_worker, page))
 
-            for future in as_completed(futures):
-                future.result()
-                progress.update(n=1)
+        # update progress for each completed future
+        for _ in as_completed(futures):
+            progress.update(n=1)
+
+    futures = list(map(lambda future: future.result(), futures))
+    wavs = {page: wav_file for page, wav_file in futures}
 
     return wavs
 
@@ -83,10 +117,11 @@ def generate_tts(text):
             stderr=subprocess.DEVNULL,
         )
         mimic.wait()
+
     return output
 
 
-def setup(save_file_name):
+def setup():
     """Setup related processes."""
 
     # create save directory
@@ -102,10 +137,19 @@ def unique_identifier():
 @click.command()
 @click.argument("file", type=click.File("rb"), nargs=1)
 def main(file):
-    save_file_name = ".".join(file.name.split(".")[:-1]) + ".wav"
-    setup(save_file_name)
+    base_name = ".".join(file.name.split(".")[:-1])
+
+    # wav file produced after concatenating mimic3 files
+    temp_wav_name = f"{SAVE_DIRECTORY}/{base_name}-temp.wav"
+
+    # mp4 file support chapters
+    temp_mp4_name = f"{SAVE_DIRECTORY}/{base_name}-temp{SAVE_FILE_EXT}"
+
+    save_file_name = base_name + SAVE_FILE_EXT
+    setup()
 
     if file.name[-3:] == "pdf":
+        # if file is pdf, read pdf and separate pages with ###{page number}###
         pdf = pdftotext.PDF(file)
         text = "".join([f"###{page+1}###" + pdf[page] for page in range(len(pdf))])
     else:
@@ -115,7 +159,7 @@ def main(file):
     pages = text.split("###")
     pages = list(filter(lambda x: x, pages))
 
-    # multiple pages
+    # handle multiple / single pages
     if not len(pages) < 2:
         if len(pages) % 2 == 0:
             page_names = [pages[n] for n in range(0, len(pages), 2)]
@@ -132,9 +176,6 @@ def main(file):
 
     wavs = generate_tts_files(page_names, page_contents)
 
-    print(page_names)  # REMOVE
-    print(wavs)  # REMOVE
-
     concat_file = ""
     wav_lengths = []
     for page in page_names:
@@ -143,8 +184,7 @@ def main(file):
         wav_lengths.append(get_wav_length(wav_file))
         concat_file += f"file '{wav_file}'\n"
 
-    wav_lengths = list(map(lambda x: float(x), wav_lengths))
-    print(wav_lengths)  # REMOVE
+    wav_lengths = list(map(lambda x: float(x) * 1000, wav_lengths))
 
     concat_file = concat_file[:-1]
 
@@ -152,10 +192,23 @@ def main(file):
     with open(wav_list, "w") as f:
         f.write(concat_file)
 
+    # join wav files into one (temporary) wav file
     concat_cmd = (
-        f"ffmpeg -v quiet -f concat -safe 0 -i {wav_list} -c copy {save_file_name}"
+        f"ffmpeg -v quiet -f concat -safe 0 -i {wav_list} -c copy {temp_wav_name}"
     )
     subprocess.run(concat_cmd, shell=True)
+
+    metadata_file = write_ffmpeg_metadata(base_name, page_names, wav_lengths)
+
+    # convert to format (mp4) that supports chapters
+    convert_cmd = f"ffmpeg -loop 1 -i {TTS_IMAGE} -i {temp_wav_name} -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest {temp_mp4_name} -v quiet"
+    subprocess.run(convert_cmd, shell=True)
+
+    # add metadata to mp4 file
+    metadata_cmd = f"ffmpeg -i {temp_mp4_name} -i {metadata_file} -map_metadata 1 -c copy {save_file_name} -v quiet"
+    subprocess.run(metadata_cmd, shell=True)
+
+    click.echo(click.style(f"File saved to '{save_file_name}'", fg="bright_green"))
 
 
 if __name__ == "__main__":
