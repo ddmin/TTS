@@ -3,6 +3,9 @@
 
 
 # TODO: flag to select page range
+# TODO: flag to control ffmpeg verbose
+# TODO: flag to set image
+# TODO: flag to set # threads
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
@@ -11,16 +14,36 @@ import click
 import tqdm
 import uuid
 import os
+import re
 
 
 SAVE_DIRECTORY = "/tmp/ktts"
 TTS_IMAGE = "~/.icons/tts_bg.png"
 SAVE_FILE_EXT = ".mp4"
+FFMPEG_OUTPUT = "-v quiet"
 
 if not os.cpu_count() is None:
-    MAXIMUM_THREADS = max(os.cpu_count() - 4, 1)
+    MAXIMUM_THREADS = max(os.cpu_count() // 2, 1)
 else:
     MAXIMUM_THREADS = 1
+
+
+def check_then_delete(path, check: bool):
+    """Check if file exists. If file exists, confirm deletion, otherwise exit."""
+    if check:
+        if os.path.exists(path):
+            click.echo(
+                click.style(
+                    f"File '{path}' already exists. Overwrite? [y/N] ", fg="bright_red"
+                ),
+                nl=False,
+            )
+            choice = input()
+            if choice.lower() not in ("y", "yes"):
+                exit(1)
+
+    if os.path.exists(path):
+        os.remove(path)
 
 
 def write_ffmpeg_metadata(base_name, page_names, wav_lengths):
@@ -134,10 +157,17 @@ def unique_identifier():
     return uuid.uuid4().hex
 
 
+def sanitize_filename(filename):
+    """Remove unsavory characters (from filename)"""
+    remove_regex = r"[^A-Za-z0-9\.]"
+    return re.sub(remove_regex, "-", filename)
+
+
 @click.command()
 @click.argument("file", type=click.File("rb"), nargs=1)
 def main(file):
     base_name = ".".join(file.name.split(".")[:-1])
+    base_name = sanitize_filename(base_name)
 
     # wav file produced after concatenating mimic3 files
     temp_wav_name = f"{SAVE_DIRECTORY}/{base_name}-temp.wav"
@@ -147,6 +177,11 @@ def main(file):
 
     save_file_name = base_name + SAVE_FILE_EXT
     setup()
+
+    # remove the temporary files
+    check_then_delete(save_file_name, check=True)
+    check_then_delete(temp_wav_name, check=False)
+    check_then_delete(temp_mp4_name, check=False)
 
     if file.name[-3:] == "pdf":
         # if file is pdf, read pdf and separate pages with ###{page number}###
@@ -174,6 +209,7 @@ def main(file):
 
     assert len(page_names) == len(page_contents)
 
+    click.echo()  # newline for formatting purposes
     wavs = generate_tts_files(page_names, page_contents)
 
     concat_file = ""
@@ -193,22 +229,32 @@ def main(file):
         f.write(concat_file)
 
     # join wav files into one (temporary) wav file
-    concat_cmd = (
-        f"ffmpeg -v quiet -f concat -safe 0 -i {wav_list} -c copy {temp_wav_name}"
+    click.echo(
+        click.style(f"\n[FFMPEG] ", fg="bright_blue")
+        + click.style("Concatenating TTS files...")
     )
+    concat_cmd = f"ffmpeg -f concat -safe 0 -i {wav_list} -c copy {temp_wav_name} {FFMPEG_OUTPUT}"
     subprocess.run(concat_cmd, shell=True)
 
     metadata_file = write_ffmpeg_metadata(base_name, page_names, wav_lengths)
 
     # convert to format (mp4) that supports chapters
-    convert_cmd = f"ffmpeg -loop 1 -i {TTS_IMAGE} -i {temp_wav_name} -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest {temp_mp4_name} -v quiet"
+    click.echo(
+        click.style(f"[FFMPEG] ", fg="bright_blue")
+        + click.style("Encoding TTS file into mp4 file...")
+    )
+    convert_cmd = f"ffmpeg -loop 1 -i {TTS_IMAGE} -i {temp_wav_name} -c:v libx264 -tune stillimage -c:a aac -b:a 192k -pix_fmt yuv420p -shortest {temp_mp4_name} {FFMPEG_OUTPUT}"
     subprocess.run(convert_cmd, shell=True)
 
     # add metadata to mp4 file
-    metadata_cmd = f"ffmpeg -i {temp_mp4_name} -i {metadata_file} -map_metadata 1 -c copy {save_file_name} -v quiet"
+    click.echo(
+        click.style(f"[FFMPEG] ", fg="bright_blue")
+        + click.style(f"Adding metadata to '{save_file_name}'...")
+    )
+    metadata_cmd = f"ffmpeg -i {temp_mp4_name} -i {metadata_file} -map_metadata 1 -c copy {save_file_name} {FFMPEG_OUTPUT}"
     subprocess.run(metadata_cmd, shell=True)
 
-    click.echo(click.style(f"File saved to '{save_file_name}'", fg="bright_green"))
+    click.echo(click.style(f"\nFile saved to '{save_file_name}'", fg="bright_green"))
 
 
 if __name__ == "__main__":
