@@ -186,7 +186,7 @@ def main(file):
     if file.name[-3:] == "pdf":
         # if file is pdf, read pdf and separate pages with ###{page number}###
         pdf = pdftotext.PDF(file)
-        text = "".join([f"###{page+1}###" + pdf[page] for page in range(len(pdf))])
+        text = "".join([f"###Page {page+1}###" + pdf[page] for page in range(len(pdf))])
     else:
         text = file.read().decode()
 
