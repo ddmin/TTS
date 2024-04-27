@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 # ktts (聞tts): converts text file into mp3
 
-
 # TODO: flag to select page range
-# TODO: flag to control ffmpeg verbose
 # TODO: flag to set image
 # TODO: flag to set # threads
 
@@ -20,7 +18,6 @@ import re
 SAVE_DIRECTORY = "/tmp/ktts"
 TTS_IMAGE = "~/.icons/tts_bg.png"
 SAVE_FILE_EXT = ".mp4"
-FFMPEG_OUTPUT = "-v quiet"
 
 if not os.cpu_count() is None:
     MAXIMUM_THREADS = max(os.cpu_count() // 2, 1)
@@ -144,12 +141,19 @@ def generate_tts(text):
     return output
 
 
-def setup():
+def setup(verbose):
     """Setup related processes."""
 
     # create save directory
     if not os.path.exists(SAVE_DIRECTORY):
         os.mkdir(SAVE_DIRECTORY)
+
+    # control ffmpeg output
+    ffmpeg_output = "-v quiet"
+    if verbose:
+        ffmpeg_output = ""
+
+    return ffmpeg_output
 
 
 def unique_identifier():
@@ -164,8 +168,11 @@ def sanitize_filename(filename):
 
 
 @click.command()
-@click.argument("file", type=click.File("rb"), nargs=1)
-def main(file):
+@click.argument("file", type=click.File("rb"), nargs=1, required=True)
+@click.option(
+    "-v", "--verbose", is_flag=True, default=False, help="Enable verbose ffmpeg output"
+)
+def main(file, verbose):
     base_name = ".".join(file.name.split(".")[:-1])
     base_name = sanitize_filename(base_name)
 
@@ -176,7 +183,7 @@ def main(file):
     temp_mp4_name = f"{SAVE_DIRECTORY}/{base_name}-temp{SAVE_FILE_EXT}"
 
     save_file_name = base_name + SAVE_FILE_EXT
-    setup()
+    FFMPEG_OUTPUT = setup(verbose)
 
     # remove the temporary files
     check_then_delete(save_file_name, check=True)
