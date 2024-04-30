@@ -1,0 +1,14 @@
+#!/bin/bash
+# ktts-mpv: Preferred mpv window settings for TTS generate with ktts
+
+SPEED="1.5"
+
+mpv \
+    --ontop \
+    --autofit="10%" \
+    --geometry="0%:100%" \
+    --force-window \
+    --keep-open="always" \
+    --speed=$SPEED \
+    --no-terminal \
+    "$@" 2> /dev/null & exit

@@ -1,14 +1,22 @@
-#!/usr/bin/python3
-
+#!/usr/bin/python
 # sanitize: sanitize text input from stdin
-#   1. join hyphenated words separated by new line
-#   2. remove parenthesis/brackets
-#   3. remove repeated characters
-#   4. remove special characters
-#   5. make all lowercase
+
+# TODO: toggle with flags (click)
+
+# TODO: exception \w\d - only lower case letters
+#       [a-z]\d - remove
+#       [A-Z]\d - DON'T remove
+
+# TODO: exception - numbers in parenthesis IF (and only IF)
+#                   there are word starting with capital letter
+
 
 import re
 import sys
+
+PUNCTUATION = r"\.?!,;:\-"
+OPENING = r"\(\[\{"
+CLOSING = r"\)\]\}"
 
 
 def main():
@@ -31,29 +39,49 @@ def main():
             joined += line + " "
 
     # remove dates (references/citation)
-    date_rx = "\([^\(\)]*\d\d+?[^\(\)]*\)"
+    date_rx = r"\([^\(\)]*\d\d+?[^\(\)]*\)"
     #           ([not parenthesis]* [number][number]+ [not parenthesis]*)
 
     # remove academic citations
-    citation_rx = "\[[^\[\]]*\d\d+?[^\[\]]*\]"
+    citation_rx = r"\[[^\[\]]*\d\d+?[^\[\]]*\]"
     #               ([not bracket]* [number][number]+ [not bracket]*)
 
     joined = re.sub(date_rx, " ", joined)
     joined = re.sub(citation_rx, " ", joined)
 
+    # remove ALL numbers in parentheses (not just academic citations)
+    paren_number_rx = (
+        rf"[{OPENING}][^{OPENING}{CLOSING}]*\d+[^{OPENING}{CLOSING}]*[{CLOSING}]"
+    )
+    joined = re.sub(paren_number_rx, " ", joined)
+
+    # remove number ranges (\d-\d) and comma separated (\d,)+(\d)
+    range_rx = r"\d+\-\d+"
+    csn_rx = r"(\d,)+(\d)"
+    joined = re.sub(range_rx, " ", joined)
+    joined = re.sub(csn_rx, " ", joined)
+
+    # remove numbers at the end of words
+    range_rx = r"([A-Za-z]+)\d+"
+    #            [word]     [number]+
+    joined = re.sub(range_rx, r"\1 ", joined)
+
     # remove special characters
-    joined = re.sub(r"\s?[^\.?!,;:\-\w\s\[\]\(\)]\s", " ", joined)
+    joined = re.sub(rf"\s?[^\w\s{PUNCTUATION}{OPENING}{CLOSING}]\s", " ", joined)
 
     # removed repeated characters
     joined = re.sub(r"([^A-Za-z0-9])(\1+)", r"\1", joined)
     joined = re.sub(r"([^A-Za-z0-9]+)(\1+)", r"\1", joined)
     joined = re.sub(r"(\s)\s", r"\1", joined)
 
+    # join hanging punctuation (separated by whitespace)
+    joined = re.sub(rf"([^{PUNCTUATION}])\s([{PUNCTUATION}])", r"\1\2", joined)
+
     # remove trailing whitespace
     joined = joined.strip()
 
     # all lowercase
-    joined = joined.lower()
+    # joined = joined.lower()
 
     print(joined, end="")
 

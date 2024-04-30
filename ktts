@@ -1,9 +1,14 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # ktts (聞tts): converts text file into mp3
 
+# TODO: test festival/piper
+# TODO: read pdf formatting (superscript, subscript, headers)
 # TODO: flag to select page range
 # TODO: flag to set image
 # TODO: flag to set # threads
+# TODO: flag to split by paragraph (set chapters to paragraphs)
+# TODO: set word pronunciation file
+# TODO: add timer
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
@@ -18,9 +23,10 @@ import re
 SAVE_DIRECTORY = "/tmp/ktts"
 TTS_IMAGE = "~/.icons/tts_bg.png"
 SAVE_FILE_EXT = ".mp4"
+PAGE_SPLIT_MARKER = "##"
 
-if not os.cpu_count() is None:
-    MAXIMUM_THREADS = max(os.cpu_count() // 2, 1)
+if os.cpu_count() is not None:
+    MAXIMUM_THREADS = max(os.cpu_count() // 4, 1)
 else:
     MAXIMUM_THREADS = 1
 
@@ -98,10 +104,10 @@ def generate_tts_files(page_names, page_contents):
     with ThreadPoolExecutor(max_workers=MAXIMUM_THREADS) as executor:
         for page, page_content in zip(page_names, page_contents):
 
-            def mimic_worker(page):
+            def mimic_worker(page, page_content):
                 return page, generate_tts(page_content)
 
-            futures.append(executor.submit(mimic_worker, page))
+            futures.append(executor.submit(mimic_worker, page, page_content))
 
         # update progress for each completed future
         for _ in as_completed(futures):
@@ -173,7 +179,13 @@ def sanitize_filename(filename):
     "-v", "--verbose", is_flag=True, default=False, help="Enable verbose ffmpeg output"
 )
 def main(file, verbose):
-    base_name = ".".join(file.name.split(".")[:-1])
+    # check if file has extension
+    if "." in file.name:
+        base_name = ".".join(file.name.split(".")[:-1])
+    else:
+        base_name = file.name
+
+    # remove illegal characters from filename
     base_name = sanitize_filename(base_name)
 
     # wav file produced after concatenating mimic3 files
@@ -191,14 +203,18 @@ def main(file, verbose):
     check_then_delete(temp_mp4_name, check=False)
 
     if file.name[-3:] == "pdf":
-        # if file is pdf, read pdf and separate pages with ###{page number}###
         pdf = pdftotext.PDF(file)
-        text = "".join([f"###Page {page+1}###" + pdf[page] for page in range(len(pdf))])
+        text = "".join(
+            [
+                f"{PAGE_SPLIT_MARKER}Page {page+1}{PAGE_SPLIT_MARKER}" + pdf[page]
+                for page in range(len(pdf))
+            ]
+        )
     else:
         text = file.read().decode()
 
     # separate pages
-    pages = text.split("###")
+    pages = text.split(PAGE_SPLIT_MARKER)
     pages = list(filter(lambda x: x, pages))
 
     # handle multiple / single pages
